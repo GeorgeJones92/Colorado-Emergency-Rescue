@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+   <head>
+ 
+ <title>CoAvalancheMap</title>
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.css" type="text/css">
+ <script src="http://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.js"></script>
+	<script src="http://code.jquery.com/jquery-1.11.0.min.js"></script> 
+	<script src="http://openlayers.org/en/v3.16.0/build/ol.js"></script>
+	<script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
+   
+
+<!--Google analytics script//tells you website traffic visitation--->
+   
+
+
+<!--external fonts-->
+<link href='https://fonts.googleapis.com/css?family=Fira+Sans' rel='stylesheet'>
+<link href='https://fonts.googleapis.com/css?family=Monsterrat' rel='stylesheet'>
+        <link rel="stylesheet" href="resources/w3.css" />
+    <link rel="stylesheet" href="resources/w3-color-theme.css" />
+    <link rel="stylesheet" href="resources/w3-color-theme-historic.css" />
+	<link rel="stylesheet" href="resources/w3.css">
+	<link rel="stylesheet" href="resources/w3-color-theme.css"/> 
+</head>
+
+ <body>
+   <form> 
+ <div>
+  <input id="mountainname" type="text" value="STANLEY MOUNTAIN"><br>
+  <input type="button" value="Find Hospital" onclick="findHospitals();" >
+</div>
+	<div>
+   <input type="button" value="GET HOSPITALS WITH PADS" onclick="findPadsWithHospitals();">
+  </div>
+ </form>
+  
+ <input id="distance" type="text" value=4534><br>
+  Distance(meters):<br>
+
+     <div id="answer"></div>   
+ <input id="answer" type="text" value='Convert to Miles' onclick="convertData();">
+
+<div id="map" class="map"></div>
+<iframe id="info" width="700" height="400"></iframe>
+
+<div class="w3-container w3-theme">
+            <input class="w3-input w3-margin-top w3-margin-bottom w3-padding-0 w3-theme-l2" id="layerSearchTerm" oninput="thelayerSearch();" type="text" style="width:100%" placeholder="Search for a layer or subject...">
+</div>
+      
+         
+         <script>
+//Create the Map 
+	var view = new ol.View({
+          center: [-11700500,4800900],
+          zoom: 9      
+		  });
+
+       var map = new ol.Map({
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.OSM()
+          })
+        ],
+        target: 'map',
+        view: view
+      });
+	
+
+///THIS LINE DEFINES THE GENERIC URL 
+var theurl = 'http://localhost:2222/geoserver/CAICWeb/wms';
+
+//ADD THE hospitals LAYER
+var hospitals = new ol.layer.Image({
+			source: new ol.source.ImageWMS({
+			url: theurl,
+			params: {'LAYERS': 'CAICWeb:hospitals'}
+			})
+});
+
+var mountain = new ol.layer.Image({
+			source: new ol.source.ImageWMS({
+			url: theurl,
+			params: {'LAYERS': 'CAICWeb:mountain'}
+			})
+});
+//add roads
+var roads =  new ol.layer.Image({
+			source: new ol.source.ImageWMS({
+			url: theurl,
+			params: {'LAYERS': 'CAICWeb:roadscol'}
+			})
+});
+//add helipads 
+var helipads = new ol.layer.Image({
+		  source: new ol.source.ImageWMS({
+		  url: theurl,
+		  params:{'LAYERS': 'CAICWeb:helipads'}
+		})
+});
+
+var viewparameters = 'h:' + document.getElementById('mountainname').value + ';d:' + document.getElementById('distance').value;
+var hospitalnear = new ol.layer.Image({
+			source: new ol.source.ImageWMS({
+			url: theurl,
+			params: {'LAYERS': 'CAICWeb:hospitalquery', 'viewparameters': viewparameters}
+		})
+	}); 
+	
+
+//CQL FILTERS
+//var cqlfilter = '';
+//var format = new ol.format.WKT();
+//var cqlfilter = 'DWITHIN(geometry, ' + format.writeGeometry(feature.getGeometry', 10, kilometers)';
+var cqlfilter = 'DWITHIN(geometry,Point(4800900 -11700500),10000000, meters)';
+	//var cqlfilter = 'DWITHIN(geometry, collectGeometries(queryCollection(\'CAICWeb:mountain\',\'geometry\',\'name = \'\'' + document.getElementById('mountain').value + '\'\' \')), ' + document.getElementById('distance').value + ', meters)';
+//var thecqlfilter = 'DWITHIN(geometry,collectGeometries(queryCollection(\'CAICWeb:mountain\',\'geometry\',\'name = \'\'STANLEY MOUNTAIN\'\' \')), 50000000, meters))';
+//var cqlfilter = 'DWITHIN(geometry, collectGeometires(queryCollection(\'CAICWeb:mountain\', '\gemoetry\', \'name=\'\'STANLEY MOUNTAIN\'\')), 5000000, meters))';
+//var cqlfilter = 'DWITHIN(geometry, collectGeometries(queryCollection(\'CAICWeb:mountain\',\'geometry\',\'name = \'\'Mt.Emmons\'\' \')),15000000,meters)' ;
+var thecqlfilter = 'DWITHIN(geometry, collectGeometries(queryCollection(\'CAICWeb:hospitals\',\'geometry\',\'hasPad = \'\'true\'\' \')),15000000,meters)' 
+	//var cqlfilter = 'DWITHIN(geometry, collectGeometries(querySingle(\'CAICWeb:state_parks\',\'geometry\',\'name = \'\'ESTES PARK\'\' \')),15000,meters)' ;
+ //var cqlfilter = 'DWITHIN(geometry,collectGeometries(queryCollection(\'CAICWeb:mountain\',\'geometry\',\'name = \'\' + document.getElementById('mountainname').value + '\'\')), ' + document.getElementById('distance').value + ',meters)';
+//create function to find hospital helipads within 70000 feet of a hospital
+ //add hospitalcql layer
+
+ //hospital near
+ 
+var hospitalcql = new ol.layer.Image({
+			source: new ol.source.ImageWMS({
+			url: theurl,
+			params: {'LAYERS': 'CAICWeb:hospitals', 'CQL_FILTER': cqlfilter},
+		})
+	});
+var thehospitals = new ol.layer.Image({
+		   source: new ol.source.ImageWMS({
+       		url: theurl,
+		   params: {'LAYERS': 'CAICWeb:hospitals', 'CQL_FILTER': thecqlfilter},
+		 })
+	});
+function convertData() {
+    distance =  document.getElementById('distance').value;
+    miles = .00062137119;
+    result =  distance * miles;
+    document.getElementById('answer').innerHTML = +result;
+};
+
+function findHospitals() {
+	 cqlfilter = 'DWITHIN(geometry, collectGeometries(queryCollection(\'CAICWeb:mountain\',\'geometry\',\'name = \'\'' + document.getElementById('mountainname').value + '\'\' \')), ' + document.getElementById('distance').value + ', meters)' ;
+	  hospitalcql.getSource().updateParams({'LAYERS':'CAICWeb:hospitals', 'CQL_FILTER': cqlfilter});
+	    viewparameters = 'h:' + document.getElementById('mountainname').value + ';d:' + document.getElementById('distance').value;
+		hospitalnear.getSource().updateParams({'LAYERS': 'CAICWeb:hospitalquery', 'viewparams': viewparameters});
+};
+
+function findPadsWithHospitals() {
+	 cqlfilter = 'DWITHIN(geometry, collectGeometries(queryCollection(\'CAICWeb:mountain\',\'geometry\',\'name = \'\'' + document.getElementById('mountainname').value + '\'\' \')), ' + document.getElementById('distance').value + ', meters)' ;
+	  hospitalcql.getSource().updateParams({'LAYERS':'CAICWeb:hospitals', 'CQL_FILTER': cqlfilter});
+	    viewparameters = 'h:' + document.getElementById('mountainname').value + ';d:' + document.getElementById('distance').value;
+		hospitalnear.getSource().updateParams({'LAYERS': 'CAICWeb:hospitalquery', 'viewparams': viewparameters});
+};
+
+
+
+	
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+map.addLayer(helipads);
+
+map.addLayer(mountain);  
+map.addLayer(roads);   
+map.addLayer(hospitalnear);  
+//map.addLayer(trails);
+
+
+
+
+
+/*funtion find hospitals associated with helipads*/
+
+    
+    map.on('singleclick', function(evt) {
+    // update vector data
+	ol.proj.addProjection("EPSG:26917");
+	alert(evt.coordinate);
+	var utm = ol.proj.transform(evt.coordinate, "EPSG:3857", "EPSG:26917");
+	cqlfilter = 'DWITHIN(geometry,Point(' + utm[0] + ' ' + utm[1] +'),' + document.getElementById('distance').value +  ',meters)';
+	vector.getSource().clear();
+ });
+
+
+
+
+ </script> 
+
+    
+ </body>
+ </html>
